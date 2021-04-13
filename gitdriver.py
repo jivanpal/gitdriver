@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import os
 import sys
@@ -11,13 +11,10 @@ from drive import GoogleDrive, DRIVE_RW_SCOPE
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--config', '-f', default='gd.conf')
-    p.add_argument('--text', '-T', action='store_const', const='text/plain',
-            dest='mime_type')
-    p.add_argument('--html', '-H', action='store_const', const='text/html',
-            dest='mime_type')
+    p.add_argument('--text', '-T', action='store_const', const='text/plain', dest='mime_type')
+    p.add_argument('--html', '-H', action='store_const', const='text/html', dest='mime_type')
     p.add_argument('--mime-type', dest='mime_type')
-    p.add_argument('--raw', '-R', action='store_true',
-            help='Download original document if possible.')
+    p.add_argument('--raw', '-R', action='store_true', help='Download original document if possible.')
     p.add_argument('docid')
 
     return p.parse_args()
@@ -25,8 +22,8 @@ def parse_args():
 def main():
     opts = parse_args()
     if not opts.mime_type:
-		print "Exactly one mime-type must be given!"
-		exit(1)
+        print("Exactly one mime-type must be given!")
+        exit(1)
     cfg = yaml.load(open(opts.config))
     gd = GoogleDrive(
             client_id=cfg['googledrive']['client id'],
@@ -42,16 +39,24 @@ def main():
     md = gd.get_file_metadata(opts.docid)
 
     # Initialize the git repository.
-    print 'Create repository "%(title)s"' % md
+    print('Create repository "%(title)s"' % md)
     subprocess.call(['git','init',md['title']])
     os.chdir(md['title'])
 
     # Iterate over the revisions (from oldest to newest).
     for rev in gd.revisions(opts.docid):
-        with open('content', 'w') as fd:
+        with open('content', 'wb') as fd:
             if 'exportLinks' in rev and not opts.raw:
                 # If the file provides an 'exportLinks' dictionary,
                 # download the requested MIME type.
+
+                if not (opts.mime_type in rev['exportLinks']):
+                    print("Specified mimetype '", opts.mime_type, "' does not exist for specified document.")
+                    print("Available mimetypes for this document are:")
+                    for key in rev['exportLinks'].keys():
+                        print("- ", key)
+                    exit(1)
+
                 r = gd.session.get(rev['exportLinks'][opts.mime_type])
             elif 'downloadUrl' in rev:
                 # Otherwise, if there is a downloadUrl, use that.
